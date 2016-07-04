@@ -1,14 +1,23 @@
-"""utils.py - File for collecting general utility functions."""
+#!/usr/bin/env python
 
-import logging
-from google.appengine.ext import ndb
+"""
+utils.py
+
+File for collecting general utility functions.
+"""
+
 import endpoints
+import logging
+
+from google.appengine.ext import ndb
+
 
 def get_by_urlsafe(urlsafe, model):
-    """Returns an ndb.Model entity that the urlsafe key points to. Checks
-        that the type of entity returned is of the correct kind. Raises an
-        error if the key String is malformed or the entity is of the incorrect
-        kind
+    """
+    Returns an ndb.Model entity that the urlsafe key points to. Checks that the type of entity
+    returned is of the correct kind. Raises an error if the key String is malformed or the entity
+    is of the incorrect kind.
+
     Args:
         urlsafe: A urlsafe key string
         model: The expected entity kind
@@ -16,9 +25,11 @@ def get_by_urlsafe(urlsafe, model):
         The entity that the urlsafe Key string points to or None if no entity
         exists.
     Raises:
-        ValueError:"""
+        ValueError
+    """
+
     try:
-        key = ndb.Key(urlsafe=urlsafe)
+        key = ndb.Key(urlsafe = urlsafe)
     except TypeError:
         raise endpoints.BadRequestException('Invalid Key')
     except Exception, e:
@@ -28,8 +39,10 @@ def get_by_urlsafe(urlsafe, model):
             raise
 
     entity = key.get()
+
     if not entity:
         return None
     if not isinstance(entity, model):
         raise ValueError('Incorrect Kind')
+
     return entity
