@@ -33,7 +33,8 @@ USER_REQUEST = endpoints.ResourceContainer(
 
 MEMCACHE_MOVES_REMAINING = 'MOVES_REMAINING'
 
-@endpoints.api(name='guess_a_number', version='v1')
+
+@endpoints.api(name = 'guess_a_number', version = 'v1')
 class GuessANumberApi(remote.Service):
         """Game API"""
 
@@ -44,6 +45,7 @@ class GuessANumberApi(remote.Service):
             http_method = 'POST')
         def create_user(self, request):
             """Create a User. Requires a unique username"""
+
             if User.query(User.name == request.user_name).get():
                 raise endpoints.ConflictException('A User with that name already exists!')
 
@@ -60,6 +62,7 @@ class GuessANumberApi(remote.Service):
             http_method = 'POST')
         def new_game(self, request):
             """Creates new game"""
+
             user = User.query(User.name == request.user_name).get()
 
             if not user:
@@ -84,7 +87,9 @@ class GuessANumberApi(remote.Service):
             http_method = 'GET')
         def get_game(self, request):
             """Return the current game state."""
+
             game = get_by_urlsafe(request.urlsafe_game_key, Game)
+
             if game:
                 return game.to_form('Time to make a move!')
             else:
@@ -98,11 +103,14 @@ class GuessANumberApi(remote.Service):
             http_method = 'PUT')
         def make_move(self, request):
             """Makes a move. Returns a game state with message"""
+
             game = get_by_urlsafe(request.urlsafe_game_key, Game)
+
             if game.game_over:
                 return game.to_form('Game already over!')
 
             game.attempts_remaining -= 1
+
             if request.guess == game.target:
                 game.end_game(True)
                 return game.to_form('You win!')
@@ -119,6 +127,7 @@ class GuessANumberApi(remote.Service):
                 game.put()
                 return game.to_form(msg)
 
+
         @endpoints.method(response_message = ScoreForms,
             path = 'scores',
             name = 'get_scores',
@@ -127,6 +136,7 @@ class GuessANumberApi(remote.Service):
             """Return all scores"""
 
             return ScoreForms(items = [score.to_form() for score in Score.query()])
+
 
         @endpoints.method(request_message = USER_REQUEST,
             response_message = ScoreForms,
@@ -145,6 +155,7 @@ class GuessANumberApi(remote.Service):
 
             return ScoreForms(items = [score.to_form() for score in scores])
 
+
         @endpoints.method(response_message = StringMessage,
             path = 'games/average_attempts',
             name = 'get_average_attempts_remaining',
@@ -152,13 +163,14 @@ class GuessANumberApi(remote.Service):
         def get_average_attempts(self, request):
             """Get the cached average moves remaining"""
 
-            return StringMessage(message=memcache.get(MEMCACHE_MOVES_REMAINING) or '')
+            return StringMessage(message = memcache.get(MEMCACHE_MOVES_REMAINING) or '')
 
         @staticmethod
         def _cache_average_attempts():
             """Populates memcache with the average moves remaining of Games"""
 
             games = Game.query(Game.game_over == False).fetch()
+
             if games:
                 count = len(games)
                 total_attempts_remaining = sum([game.attempts_remaining for game in games])
@@ -166,5 +178,6 @@ class GuessANumberApi(remote.Service):
                 memcache.set(
                     MEMCACHE_MOVES_REMAINING,
                     'The average moves remaining is {:.2f}'.format(average))
+
 
 api = endpoints.api_server([GuessANumberApi])

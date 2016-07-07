@@ -59,7 +59,7 @@ class Game(ndb.Model):
 
         return form
 
-    def end_game(self, won=False):
+    def end_game(self, won = False):
         """Ends the game - if won is True, the player won. - if won is False, the player lost."""
 
         self.game_over = True

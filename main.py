@@ -23,9 +23,9 @@ class SendReminderEmail(webapp2.RequestHandler):
         app_id = app_identity.get_application_id()
         users = User.query(User.email != None)
         address = 'noreply@{}.appspotmail.com'.format(app_id)
+        subject = 'This is a reminder!'
 
         for user in users:
-            subject = 'This is a reminder!'
             body = 'Hello {}, try out Guess A Number!'.format(user.name)
             # This will send test emails, the arguments to send_mail are:
             # from, to, subject, body
@@ -44,4 +44,4 @@ class UpdateAverageMovesRemaining(webapp2.RequestHandler):
 app = webapp2.WSGIApplication([
     ('/crons/send_reminder', SendReminderEmail),
     ('/tasks/cache_average_attempts', UpdateAverageMovesRemaining),
-], debug=True)
+], debug = True)
