@@ -34,8 +34,8 @@ USER_REQUEST = endpoints.ResourceContainer(
 MEMCACHE_MOVES_REMAINING = 'MOVES_REMAINING'
 
 
-@endpoints.api(name = 'guess_a_number', version = 'v1')
-class GuessANumberApi(remote.Service):
+@endpoints.api(name = 'hangman', version = 'v1')
+class HangmanAPI(remote.Service):
         """Game API"""
 
         @endpoints.method(request_message = USER_REQUEST,
@@ -67,17 +67,15 @@ class GuessANumberApi(remote.Service):
 
             if not user:
                 raise endpoints.NotFoundException('A User with that name does not exist!')
-            try:
-                game = Game.new_game(user.key, request.min, request.max, request.attempts)
-            except ValueError:
-                raise endpoints.BadRequestException('Maximum must be greater than minimum!')
+
+            game = Game.new_game(user.key, request.attempts)
 
             # Use a task queue to update the average attempts remaining.
             # This operation is not needed to complete the creation of a new game
             # so it is performed out of sequence.
             taskqueue.add(url = '/tasks/cache_average_attempts')
 
-            return game.to_form('Good luck playing Guess a Number!')
+            return game.to_form('Good luck playing Hangman!')
 
 
         @endpoints.method(request_message = GET_GAME_REQUEST,
@@ -109,16 +107,31 @@ class GuessANumberApi(remote.Service):
             if game.game_over:
                 return game.to_form('Game already over!')
 
+            '''
+            need to fix this so hits don't count toward a guess
+            also, track which letters have already been guessed and present them
+            if the letter has already been guessed, knock one attempt
+            '''
+
             game.attempts_remaining -= 1
 
-            if request.guess == game.target:
-                game.end_game(True)
-                return game.to_form('You win!')
-
-            if request.guess < game.target:
-                msg = 'Too low!'
+            # if the guess is more than one character, we're guessing the word
+            if len(request.guess) > 1:
+                if request.guess == game.word:
+                    # we got the word, so there are no spaces left to guess!
+                    game.spaces_remaining = 0
+                    game.end_game(True)
+                    return game.to_form('You win!')
+                else:
+                    msg = 'That is not the word!'
             else:
-                msg = 'Too high!'
+                hit_count = game.word.count(request.guess)
+
+                if hit_count > 0:
+                    msg = 'That letter is in the word %s times!' % hit_count
+                    game.spaces_remaining = game.spaces_remaining - hit_count
+                else:
+                    msg = 'That letter is not in the word!'
 
             if game.attempts_remaining < 1:
                 game.end_game(False)
@@ -180,4 +193,4 @@ class GuessANumberApi(remote.Service):
                     'The average moves remaining is {:.2f}'.format(average))
 
 
-api = endpoints.api_server([GuessANumberApi])
+api = endpoints.api_server([HangmanAPI])

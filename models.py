@@ -14,6 +14,8 @@ from datetime import date
 from google.appengine.ext import ndb
 from protorpc import messages
 
+from words import get_word
+
 
 class User(ndb.Model):
     """User profile"""
@@ -25,23 +27,24 @@ class User(ndb.Model):
 class Game(ndb.Model):
     """Game object"""
 
-    target = ndb.IntegerProperty(required = True)
+    word = ndb.StringProperty(required = True)
     attempts_allowed = ndb.IntegerProperty(required = True)
-    attempts_remaining = ndb.IntegerProperty(required = True, default = 5)
+    attempts_remaining = ndb.IntegerProperty(required = True, default = 6)
+    spaces_remaining = ndb.IntegerProperty(required = True)
     game_over = ndb.BooleanProperty(required = True, default = False)
     user = ndb.KeyProperty(required = True, kind = 'User')
 
     @classmethod
-    def new_game(cls, user, min, max, attempts):
+    def new_game(cls, user, attempts):
         """Creates and returns a new game"""
 
-        if max < min:
-            raise ValueError('Maximum must be greater than minimum')
+        word = get_word()
 
-        game = Game(user=user,
-            target = random.choice(range(1, max + 1)),
+        game = Game(user = user,
+            word = word,
             attempts_allowed = attempts,
             attempts_remaining = attempts,
+            spaces_remaining = len(word),
             game_over = False)
         game.put()
 
@@ -54,6 +57,7 @@ class Game(ndb.Model):
         form.urlsafe_key = self.key.urlsafe()
         form.user_name = self.user.get().name
         form.attempts_remaining = self.attempts_remaining
+        form.spaces_remaining = self.spaces_remaining
         form.game_over = self.game_over
         form.message = message
 
@@ -96,21 +100,20 @@ class GameForm(messages.Message):
     game_over = messages.BooleanField(3, required = True)
     message = messages.StringField(4, required = True)
     user_name = messages.StringField(5, required = True)
+    spaces_remaining = messages.IntegerField(6, required = True)
 
 
 class NewGameForm(messages.Message):
     """Used to create a new game"""
 
     user_name = messages.StringField(1, required = True)
-    min = messages.IntegerField(2, default = 1)
-    max = messages.IntegerField(3, default = 10)
-    attempts = messages.IntegerField(4, default = 5)
+    attempts = messages.IntegerField(2, default = 6)
 
 
 class MakeMoveForm(messages.Message):
     """Used to make a move in an existing game"""
 
-    guess = messages.IntegerField(1, required = True)
+    guess = messages.StringField(1, required = True)
 
 
 class ScoreForm(messages.Message):
