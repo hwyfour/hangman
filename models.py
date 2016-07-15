@@ -27,10 +27,11 @@ class User(ndb.Model):
 class Game(ndb.Model):
     """Game object"""
 
-    word = ndb.StringProperty(required = True)
+    private_word = ndb.StringProperty(required = True)
+    public_word = ndb.StringProperty(required = True)
     attempts_allowed = ndb.IntegerProperty(required = True)
     attempts_remaining = ndb.IntegerProperty(required = True, default = 6)
-    spaces_remaining = ndb.IntegerProperty(required = True)
+    letters_missed = ndb.StringProperty(required = True)
     game_over = ndb.BooleanProperty(required = True, default = False)
     user = ndb.KeyProperty(required = True, kind = 'User')
 
@@ -41,10 +42,11 @@ class Game(ndb.Model):
         word = get_word()
 
         game = Game(user = user,
-            word = word,
+            private_word = word,
+            public_word = '_' * len(word),
             attempts_allowed = attempts,
             attempts_remaining = attempts,
-            spaces_remaining = len(word),
+            letters_missed = '',
             game_over = False)
         game.put()
 
@@ -56,8 +58,9 @@ class Game(ndb.Model):
         form = GameForm()
         form.urlsafe_key = self.key.urlsafe()
         form.user_name = self.user.get().name
+        form.public_word = self.public_word
+        form.letters_missed = self.letters_missed
         form.attempts_remaining = self.attempts_remaining
-        form.spaces_remaining = self.spaces_remaining
         form.game_over = self.game_over
         form.message = message
 
@@ -72,7 +75,7 @@ class Game(ndb.Model):
         score = Score(user = self.user,
             date = date.today(),
             won = won,
-            guesses = self.attempts_allowed - self.attempts_remaining)
+            attempts_remaining = self.attempts_remaining)
         score.put()
 
 
@@ -82,25 +85,26 @@ class Score(ndb.Model):
     user = ndb.KeyProperty(required = True, kind = 'User')
     date = ndb.DateProperty(required = True)
     won = ndb.BooleanProperty(required = True)
-    guesses = ndb.IntegerProperty(required = True)
+    attempts_remaining = ndb.IntegerProperty(required = True)
 
     def to_form(self):
         return ScoreForm(
             user_name = self.user.get().name,
             won = self.won,
             date = str(self.date),
-            guesses = self.guesses)
+            attempts_remaining = self.attempts_remaining)
 
 
 class GameForm(messages.Message):
     """GameForm for outbound game state information"""
 
     urlsafe_key = messages.StringField(1, required = True)
-    attempts_remaining = messages.IntegerField(2, required = True)
-    game_over = messages.BooleanField(3, required = True)
-    message = messages.StringField(4, required = True)
-    user_name = messages.StringField(5, required = True)
-    spaces_remaining = messages.IntegerField(6, required = True)
+    user_name = messages.StringField(2, required = True)
+    public_word = messages.StringField(3, required = True)
+    letters_missed = messages.StringField(4, required = True)
+    attempts_remaining = messages.IntegerField(5, required = True)
+    game_over = messages.BooleanField(6, required = True)
+    message = messages.StringField(7, required = True)
 
 
 class NewGameForm(messages.Message):
@@ -122,7 +126,7 @@ class ScoreForm(messages.Message):
     user_name = messages.StringField(1, required = True)
     date = messages.StringField(2, required = True)
     won = messages.BooleanField(3, required = True)
-    guesses = messages.IntegerField(4, required = True)
+    attempts_remaining = messages.IntegerField(4, required = True)
 
 
 class ScoreForms(messages.Message):
