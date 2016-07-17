@@ -3,8 +3,7 @@
 """
 words.py
 
-This file contains a dictionary of words and a method for returning a random one
-when initializing a new game.
+Contains a word dictionary and a method which returns a random word each time it is called.
 """
 
 import random
@@ -156,6 +155,6 @@ words = [
 
 
 def get_word():
-    """Return a random word from the dictionary"""
+    """Return a random word from the dictionary."""
 
     return words[random.choice(range(0, len(words)))]

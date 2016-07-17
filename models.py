@@ -3,9 +3,7 @@
 """
 models.py
 
-This file contains the class definitions for the Datastore entities used by the Game.
-Because these classes are also regular Python classes, they can include methods
-(such as 'to_form' and 'new_game').
+Contains the class definitions for the Datastore entities used by the Game.
 """
 
 import random
@@ -27,36 +25,45 @@ class User(ndb.Model):
 class Game(ndb.Model):
     """Game object"""
 
+    '''
+    private_word: the word assigned for this game eg. 'boat'
+    public_word: the player's current knowledge of the word eg. '__at'
+    letters_missed: a string containing all the letters the player has guessed incorrectly
+    '''
     private_word = ndb.StringProperty(required = True)
     public_word = ndb.StringProperty(required = True)
     attempts_allowed = ndb.IntegerProperty(required = True)
-    attempts_remaining = ndb.IntegerProperty(required = True, default = 6)
+    attempts_remaining = ndb.IntegerProperty(required = True)
     letters_missed = ndb.StringProperty(required = True)
     game_over = ndb.BooleanProperty(required = True, default = False)
+    cancelled = ndb.BooleanProperty(required = True, default = False)
     user = ndb.KeyProperty(required = True, kind = 'User')
 
     @classmethod
-    def new_game(cls, user, attempts):
-        """Creates and returns a new game."""
+    def new_game(cls, user, attempts = 6):
+        """Creates and returns a new Game."""
 
+        # Get a random word from our dictionary, brought to you by our imported words.py
         word = get_word()
 
+        # Create the game, assigning all blanks to the public_word
         game = Game(user = user,
             private_word = word,
             public_word = '_' * len(word),
             attempts_allowed = attempts,
             attempts_remaining = attempts,
-            letters_missed = '',
-            game_over = False)
+            letters_missed = '')
 
+        # Get a unique id for this game
         game_id = Game.allocate_ids(size = 1, parent = user)[0]
+        # So we can link this game as a descendant to this user for easy querying
         game.key = ndb.Key(Game, game_id, parent = user)
-
+        # Store the new game
         game.put()
 
         return game
 
-    def to_form(self, message=''):
+    def to_form(self, message = ''):
         """Returns a GameForm representation of the Game."""
 
         form = GameForm()
@@ -66,6 +73,7 @@ class Game(ndb.Model):
         form.letters_missed = self.letters_missed
         form.attempts_remaining = self.attempts_remaining
         form.game_over = self.game_over
+        form.cancelled = self.cancelled
         form.message = message
 
         return form
@@ -75,16 +83,19 @@ class Game(ndb.Model):
 
         self.game_over = True
         self.put()
-        # Add the game to the score 'board'
+
+        # A score is simply the number of guesses remaining
         score = Score(user = self.user,
             date = date.today(),
             won = won,
             attempts_remaining = self.attempts_remaining)
+
+        # Add the game to the score 'board'
         score.put()
 
 
 class GameForm(messages.Message):
-    """GameForm for outbound game state information"""
+    """Form for outbound Game information"""
 
     urlsafe_key = messages.StringField(1, required = True)
     user_name = messages.StringField(2, required = True)
@@ -92,7 +103,8 @@ class GameForm(messages.Message):
     letters_missed = messages.StringField(4, required = True)
     attempts_remaining = messages.IntegerField(5, required = True)
     game_over = messages.BooleanField(6, required = True)
-    message = messages.StringField(7, required = True)
+    cancelled = messages.BooleanField(7, required = True)
+    message = messages.StringField(8, required = True)
 
 
 class GameForms(messages.Message):
@@ -102,14 +114,14 @@ class GameForms(messages.Message):
 
 
 class NewGameForm(messages.Message):
-    """Used to create a new game"""
+    """Form to create a new game"""
 
     user_name = messages.StringField(1, required = True)
     attempts = messages.IntegerField(2, default = 6)
 
 
 class MakeMoveForm(messages.Message):
-    """Used to make a move in an existing game"""
+    """Form to make a move in an existing game"""
 
     guess = messages.StringField(1, required = True)
 
@@ -131,7 +143,7 @@ class Score(ndb.Model):
 
 
 class ScoreForm(messages.Message):
-    """ScoreForm for outbound Score information"""
+    """Form for outbound Score information"""
 
     user_name = messages.StringField(1, required = True)
     date = messages.StringField(2, required = True)
@@ -146,6 +158,6 @@ class ScoreForms(messages.Message):
 
 
 class StringMessage(messages.Message):
-    """StringMessage-- outbound (single) string message"""
+    """A single outbound string message"""
 
     message = messages.StringField(1, required = True)
