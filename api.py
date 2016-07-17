@@ -17,9 +17,17 @@ from protorpc import remote, messages
 from google.appengine.api import memcache
 from google.appengine.api import taskqueue
 
-from models import User, Game, Score
-from models import StringMessage, NewGameForm, GameForm, MakeMoveForm, ScoreForms
+from models import User
+from models import Game, GameForm, GameForms, NewGameForm, MakeMoveForm
+from models import Score, ScoreForms
+from models import StringMessage
+
 from utils import get_by_urlsafe
+
+
+USER_REQUEST = endpoints.ResourceContainer(
+    user_name = messages.StringField(1),
+    email = messages.StringField(2))
 
 NEW_GAME_REQUEST = endpoints.ResourceContainer(NewGameForm)
 GET_GAME_REQUEST = endpoints.ResourceContainer(
@@ -27,9 +35,6 @@ GET_GAME_REQUEST = endpoints.ResourceContainer(
 MAKE_MOVE_REQUEST = endpoints.ResourceContainer(
     MakeMoveForm,
     urlsafe_game_key = messages.StringField(1),)
-USER_REQUEST = endpoints.ResourceContainer(
-    user_name = messages.StringField(1),
-    email = messages.StringField(2))
 
 MEMCACHE_MOVES_REMAINING = 'MOVES_REMAINING'
 
@@ -44,7 +49,7 @@ class HangmanAPI(remote.Service):
             name = 'create_user',
             http_method = 'POST')
         def create_user(self, request):
-            """Create a User. Requires a unique username"""
+            """Create a User. Requires a unique username."""
 
             if User.query(User.name == request.user_name).get():
                 raise endpoints.ConflictException('A User with that name already exists!')
@@ -55,13 +60,29 @@ class HangmanAPI(remote.Service):
             return StringMessage(message = 'User {} created!'.format(request.user_name))
 
 
+        @endpoints.method(request_message = USER_REQUEST,
+            response_message = GameForms,
+            path = 'user/{user_name}/games',
+            name = 'get_user_games',
+            http_method = 'GET')
+        def get_user_games(self, request):
+            """Returns all games for the given user."""
+
+            user = User.query(User.name == request.user_name).get()
+
+            if not user:
+                raise endpoints.BadRequestException('That user does not exist!')
+
+            return GameForms(items = [game.to_form() for game in Game.query(ancestor = user.key)])
+
+
         @endpoints.method(request_message = NEW_GAME_REQUEST,
             response_message = GameForm,
             path = 'game',
             name = 'new_game',
             http_method = 'POST')
         def new_game(self, request):
-            """Creates new game"""
+            """Creates a new game."""
 
             user = User.query(User.name == request.user_name).get()
 
@@ -100,7 +121,7 @@ class HangmanAPI(remote.Service):
             name = 'make_move',
             http_method = 'PUT')
         def make_move(self, request):
-            """Makes a move. Returns a game state with message"""
+            """Makes a move. Returns a game state with message."""
 
             game = get_by_urlsafe(request.urlsafe_game_key, Game)
 
@@ -164,7 +185,7 @@ class HangmanAPI(remote.Service):
             name = 'get_scores',
             http_method = 'GET')
         def get_scores(self, request):
-            """Return all scores"""
+            """Return all scores."""
 
             return ScoreForms(items = [score.to_form() for score in Score.query()])
 
@@ -175,7 +196,7 @@ class HangmanAPI(remote.Service):
             name = 'get_user_scores',
             http_method = 'GET')
         def get_user_scores(self, request):
-            """Returns all of an individual User's scores"""
+            """Returns all of an individual User's scores."""
 
             user = User.query(User.name == request.user_name).get()
 
@@ -192,13 +213,13 @@ class HangmanAPI(remote.Service):
             name = 'get_average_attempts_remaining',
             http_method = 'GET')
         def get_average_attempts(self, request):
-            """Get the cached average moves remaining"""
+            """Get the cached average moves remaining."""
 
             return StringMessage(message = memcache.get(MEMCACHE_MOVES_REMAINING) or '')
 
         @staticmethod
         def _cache_average_attempts():
-            """Populates memcache with the average moves remaining of Games"""
+            """Populates memcache with the average moves remaining of Games."""
 
             games = Game.query(Game.game_over == False).fetch()
 

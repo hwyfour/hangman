@@ -37,7 +37,7 @@ class Game(ndb.Model):
 
     @classmethod
     def new_game(cls, user, attempts):
-        """Creates and returns a new game"""
+        """Creates and returns a new game."""
 
         word = get_word()
 
@@ -48,12 +48,16 @@ class Game(ndb.Model):
             attempts_remaining = attempts,
             letters_missed = '',
             game_over = False)
+
+        game_id = Game.allocate_ids(size = 1, parent = user)[0]
+        game.key = ndb.Key(Game, game_id, parent = user)
+
         game.put()
 
         return game
 
-    def to_form(self, message):
-        """Returns a GameForm representation of the Game"""
+    def to_form(self, message=''):
+        """Returns a GameForm representation of the Game."""
 
         form = GameForm()
         form.urlsafe_key = self.key.urlsafe()
@@ -79,6 +83,37 @@ class Game(ndb.Model):
         score.put()
 
 
+class GameForm(messages.Message):
+    """GameForm for outbound game state information"""
+
+    urlsafe_key = messages.StringField(1, required = True)
+    user_name = messages.StringField(2, required = True)
+    public_word = messages.StringField(3, required = True)
+    letters_missed = messages.StringField(4, required = True)
+    attempts_remaining = messages.IntegerField(5, required = True)
+    game_over = messages.BooleanField(6, required = True)
+    message = messages.StringField(7, required = True)
+
+
+class GameForms(messages.Message):
+    """Return multiple GameForms"""
+
+    items = messages.MessageField(GameForm, 1, repeated = True)
+
+
+class NewGameForm(messages.Message):
+    """Used to create a new game"""
+
+    user_name = messages.StringField(1, required = True)
+    attempts = messages.IntegerField(2, default = 6)
+
+
+class MakeMoveForm(messages.Message):
+    """Used to make a move in an existing game"""
+
+    guess = messages.StringField(1, required = True)
+
+
 class Score(ndb.Model):
     """Score object"""
 
@@ -93,31 +128,6 @@ class Score(ndb.Model):
             won = self.won,
             date = str(self.date),
             attempts_remaining = self.attempts_remaining)
-
-
-class GameForm(messages.Message):
-    """GameForm for outbound game state information"""
-
-    urlsafe_key = messages.StringField(1, required = True)
-    user_name = messages.StringField(2, required = True)
-    public_word = messages.StringField(3, required = True)
-    letters_missed = messages.StringField(4, required = True)
-    attempts_remaining = messages.IntegerField(5, required = True)
-    game_over = messages.BooleanField(6, required = True)
-    message = messages.StringField(7, required = True)
-
-
-class NewGameForm(messages.Message):
-    """Used to create a new game"""
-
-    user_name = messages.StringField(1, required = True)
-    attempts = messages.IntegerField(2, default = 6)
-
-
-class MakeMoveForm(messages.Message):
-    """Used to make a move in an existing game"""
-
-    guess = messages.StringField(1, required = True)
 
 
 class ScoreForm(messages.Message):
