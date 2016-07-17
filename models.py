@@ -3,7 +3,7 @@
 """
 models.py
 
-Contains the class definitions for the Datastore entities used by the Game.
+Contains the class definitions for the Datastore entities used by Hangman.
 """
 
 import random
@@ -14,6 +14,8 @@ from protorpc import messages
 
 from words import get_word
 
+
+# Definitions for the User ====================================================================== #
 
 class User(ndb.Model):
     """User profile"""
@@ -44,6 +46,8 @@ class UserForms(messages.Message):
     items = messages.MessageField(UserForm, 1, repeated = True)
 
 
+# Definitions for the Game ====================================================================== #
+
 class Game(ndb.Model):
     """Game object"""
 
@@ -69,12 +73,13 @@ class Game(ndb.Model):
         word = get_word()
 
         # Create the game, assigning all blanks to the public_word
-        game = Game(user = user,
-            private_word = word,
-            public_word = '_' * len(word),
-            attempts_allowed = attempts,
-            attempts_remaining = attempts,
-            letters_missed = '')
+        game = Game()
+        game.user = user
+        game.private_word = word
+        game.public_word = '_' * len(word)
+        game.attempts_allowed = attempts
+        game.attempts_remaining = attempts
+        game.letters_missed = ''
 
         # Get a unique id for this game
         game_id = Game.allocate_ids(size = 1, parent = user)[0]
@@ -101,22 +106,23 @@ class Game(ndb.Model):
         return form
 
     def cancel_game(self):
-        """Cancels the game."""
+        """Cancels the Game."""
 
         self.cancelled = True
         self.put()
 
     def end_game(self, won = False):
-        """Ends the game - if won is True, the player won. - if won is False, the player lost."""
+        """Ends the Game. Accepts a boolean parameter to mark a win or loss."""
 
         self.game_over = True
         self.put()
 
         # A score is simply the number of guesses remaining
-        score = Score(user = self.user,
-            date = date.today(),
-            won = won,
-            attempts_remaining = self.attempts_remaining)
+        score = Score()
+        score.user = self.user
+        score.date = date.today()
+        score.won = won
+        score.attempts_remaining = self.attempts_remaining
 
         # Add the game to the score 'board'
         score.put()
@@ -142,17 +148,19 @@ class GameForms(messages.Message):
 
 
 class NewGameForm(messages.Message):
-    """Form to create a new game"""
+    """Form to create a new Game"""
 
     user_name = messages.StringField(1, required = True)
     attempts = messages.IntegerField(2, default = 6)
 
 
 class MakeMoveForm(messages.Message):
-    """Form to make a move in an existing game"""
+    """Form to make a move in an existing Game"""
 
     guess = messages.StringField(1, required = True)
 
+
+# Definitions for the Score ===================================================================== #
 
 class Score(ndb.Model):
     """Score object"""
@@ -163,11 +171,15 @@ class Score(ndb.Model):
     attempts_remaining = ndb.IntegerProperty(required = True)
 
     def to_form(self):
-        return ScoreForm(
-            user_name = self.user.get().name,
-            won = self.won,
-            date = str(self.date),
-            attempts_remaining = self.attempts_remaining)
+        """Returns a ScoreForm representation of the Score."""
+
+        form = ScoreForm()
+        form.user_name = self.user.get().name
+        form.won = self.won
+        form.date = str(self.date)
+        form.attempts_remaining = self.attempts_remaining
+
+        return form
 
 
 class ScoreForm(messages.Message):
@@ -185,7 +197,9 @@ class ScoreForms(messages.Message):
     items = messages.MessageField(ScoreForm, 1, repeated = True)
 
 
+# Miscellaneous Definitions ===================================================================== #
+
 class StringMessage(messages.Message):
-    """A single outbound string message"""
+    """A single outbound StringMessage"""
 
     message = messages.StringField(1, required = True)
