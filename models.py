@@ -78,6 +78,12 @@ class Game(ndb.Model):
 
         return form
 
+    def cancel_game(self):
+        """Cancels the game."""
+
+        self.cancelled = True
+        self.put()
+
     def end_game(self, won = False):
         """Ends the game - if won is True, the player won. - if won is False, the player lost."""
 

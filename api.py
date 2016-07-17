@@ -73,7 +73,18 @@ class HangmanAPI(remote.Service):
             if not user:
                 raise endpoints.BadRequestException('That user does not exist!')
 
-            return GameForms(items = [game.to_form() for game in Game.query(ancestor = user.key)])
+            # Retrieve all games that belong to this player
+            games = Game.query(ancestor = user.key)
+            game_forms = []
+
+            # For each of this player's games, append only the ones that are currently active
+            for game in games:
+                if game.game_over or game.cancelled:
+                    continue
+
+                game_forms.append(game.to_form())
+
+            return GameForms(items = game_forms)
 
 
         @endpoints.method(request_message = NEW_GAME_REQUEST,
@@ -113,6 +124,27 @@ class HangmanAPI(remote.Service):
                 return game.to_form('Time to make a move!')
             else:
                 raise endpoints.NotFoundException('Game not found!')
+
+
+        @endpoints.method(request_message = GET_GAME_REQUEST,
+            response_message = GameForm,
+            path = 'game/{urlsafe_game_key}/cancel',
+            name = 'cancel_game',
+            http_method = 'PUT')
+        def cancel_game(self, request):
+            """Cancels the game. Returns the final game state."""
+
+            game = get_by_urlsafe(request.urlsafe_game_key, Game)
+
+            if not game:
+                raise endpoints.NotFoundException('Game not found!')
+
+            if game.game_over:
+                return game.to_form('Game already over!')
+
+            game.cancel_game()
+
+            return game.to_form('Game cancelled!')
 
 
         @endpoints.method(request_message = MAKE_MOVE_REQUEST,
