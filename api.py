@@ -36,6 +36,9 @@ MAKE_MOVE_REQUEST = endpoints.ResourceContainer(
     MakeMoveForm,
     urlsafe_game_key = messages.StringField(1),)
 
+HIGH_SCORES_REQUEST = endpoints.ResourceContainer(
+    number_of_results = messages.IntegerField(1),)
+
 MEMCACHE_MOVES_REMAINING = 'MOVES_REMAINING'
 
 
@@ -220,6 +223,20 @@ class HangmanAPI(remote.Service):
             """Return all scores."""
 
             return ScoreForms(items = [score.to_form() for score in Score.query()])
+
+
+        @endpoints.method(request_message = HIGH_SCORES_REQUEST,
+            response_message = ScoreForms,
+            path = 'scores/high',
+            name = 'get_high_scores',
+            http_method = 'GET')
+        def get_high_scores(self, request):
+            """Return scores from highest to lowest, limited to 5 or the supplied parameter."""
+
+            limit = request.number_of_results or 5
+            scores = Score.query().order(-Score.attempts_remaining).fetch(limit)
+
+            return ScoreForms(items = [score.to_form() for score in scores])
 
 
         @endpoints.method(request_message = USER_REQUEST,
