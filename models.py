@@ -21,6 +21,28 @@ class User(ndb.Model):
     name = ndb.StringProperty(required = True)
     email = ndb.StringProperty()
 
+    def to_form(self):
+        """Returns a UserForm representation of the User."""
+
+        form = UserForm()
+        form.name = self.name
+        form.average_guesses_remaining = 0
+
+        return form
+
+
+class UserForm(messages.Message):
+    """Form for outbound User information"""
+
+    name = messages.StringField(1, required = True)
+    average_guesses_remaining = messages.FloatField(2, required = True)
+
+
+class UserForms(messages.Message):
+    """Return multiple UserForms"""
+
+    items = messages.MessageField(UserForm, 1, repeated = True)
+
 
 class Game(ndb.Model):
     """Game object"""

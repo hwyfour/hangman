@@ -17,7 +17,7 @@ from protorpc import remote, messages
 from google.appengine.api import memcache
 from google.appengine.api import taskqueue
 
-from models import User
+from models import User, UserForms
 from models import Game, GameForm, GameForms, NewGameForm, MakeMoveForm
 from models import Score, ScoreForms
 from models import StringMessage
@@ -88,6 +88,21 @@ class HangmanAPI(remote.Service):
                 game_forms.append(game.to_form())
 
             return GameForms(items = game_forms)
+
+
+        @endpoints.method(response_message = UserForms,
+            path = 'user/rankings',
+            name = 'get_user_rankings',
+            http_method = 'GET')
+        def get_user_rankings(self, request):
+            """Return all players ranked by their average number of guesses remaining."""
+
+            '''
+            get all users, sort by their average, descending
+            users need a function to calulate their average score
+            '''
+
+            return UserForms(items = [user.to_form() for user in User.query()])
 
 
         @endpoints.method(request_message = NEW_GAME_REQUEST,
