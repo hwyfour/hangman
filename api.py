@@ -97,10 +97,10 @@ class HangmanAPI(remote.Service):
         def get_user_rankings(self, request):
             """Return all players ranked by their average number of guesses remaining."""
 
-            '''
-            get all users, sort by their average, descending
-            users need a function to calulate their average score
-            '''
+            # '''
+            # get all users, sort by their average, descending
+            # users need a function to calulate their average score
+            # '''
 
             return UserForms(items = [user.to_form() for user in User.query()])
 
@@ -138,10 +138,10 @@ class HangmanAPI(remote.Service):
 
             game = get_by_urlsafe(request.urlsafe_game_key, Game)
 
-            if game:
-                return game.to_form('Time to make a move!')
-            else:
+            if not game:
                 raise endpoints.NotFoundException('Game not found!')
+
+            return game.to_form()
 
 
         @endpoints.method(request_message = GET_GAME_REQUEST,
@@ -175,11 +175,13 @@ class HangmanAPI(remote.Service):
 
             game = get_by_urlsafe(request.urlsafe_game_key, Game)
 
+            if not game:
+                raise endpoints.NotFoundException('Game not found!')
+
             if game.game_over:
                 return game.to_form('Game already over!')
 
             guess = request.guess
-
             game.guesses += 1
 
             # if the guess is more than one character, we're guessing the word
