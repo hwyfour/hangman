@@ -69,7 +69,7 @@ class HangmanAPI(remote.Service):
             name = 'get_user_games',
             http_method = 'GET')
         def get_user_games(self, request):
-            """Returns all games for the given user."""
+            """Return all games for the given player."""
 
             user = User.query(User.name == request.user_name).get()
 
@@ -111,7 +111,7 @@ class HangmanAPI(remote.Service):
             name = 'new_game',
             http_method = 'POST')
         def new_game(self, request):
-            """Creates a new game."""
+            """Create a new game."""
 
             user = User.query(User.name == request.user_name).get()
 
@@ -150,7 +150,7 @@ class HangmanAPI(remote.Service):
             name = 'cancel_game',
             http_method = 'PUT')
         def cancel_game(self, request):
-            """Cancels the game. Returns the final game state."""
+            """Cancel the game and return the final game state."""
 
             game = get_by_urlsafe(request.urlsafe_game_key, Game)
 
@@ -171,7 +171,7 @@ class HangmanAPI(remote.Service):
             name = 'make_move',
             http_method = 'PUT')
         def make_move(self, request):
-            """Makes a move. Returns a game state with message."""
+            """Make a move and return the move result with a message."""
 
             game = get_by_urlsafe(request.urlsafe_game_key, Game)
 
@@ -179,6 +179,8 @@ class HangmanAPI(remote.Service):
                 return game.to_form('Game already over!')
 
             guess = request.guess
+
+            game.guesses += 1
 
             # if the guess is more than one character, we're guessing the word
             if len(guess) > 1:
@@ -246,10 +248,9 @@ class HangmanAPI(remote.Service):
             name = 'get_high_scores',
             http_method = 'GET')
         def get_high_scores(self, request):
-            """Return scores from highest to lowest, limited to 5 or the supplied parameter."""
+            """Return ranked scores. Lower is better. Limited to 5 or the supplied parameter."""
 
-            limit = request.number_of_results or 5
-            scores = Score.query().order(-Score.attempts_remaining).fetch(limit)
+            scores = Score.query().order(Score.misses).fetch(request.number_of_results or 5)
 
             return ScoreForms(items = [score.to_form() for score in scores])
 
@@ -260,7 +261,7 @@ class HangmanAPI(remote.Service):
             name = 'get_user_scores',
             http_method = 'GET')
         def get_user_scores(self, request):
-            """Returns all of an individual User's scores."""
+            """Return all of a user's scores."""
 
             user = User.query(User.name == request.user_name).get()
 
@@ -283,7 +284,7 @@ class HangmanAPI(remote.Service):
 
         @staticmethod
         def _cache_average_attempts():
-            """Populates memcache with the average moves remaining of Games."""
+            """Populate memcache with the average moves remaining of all games."""
 
             games = Game.query(Game.game_over == False).fetch()
 

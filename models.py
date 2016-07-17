@@ -28,7 +28,7 @@ class User(ndb.Model):
 
         form = UserForm()
         form.name = self.name
-        form.average_guesses_remaining = 0
+        form.average_misses = 0
 
         return form
 
@@ -37,7 +37,7 @@ class UserForm(messages.Message):
     """Form for outbound User information"""
 
     name = messages.StringField(1, required = True)
-    average_guesses_remaining = messages.FloatField(2, required = True)
+    average_misses = messages.FloatField(2, required = True)
 
 
 class UserForms(messages.Message):
@@ -60,6 +60,7 @@ class Game(ndb.Model):
     public_word = ndb.StringProperty(required = True)
     attempts_allowed = ndb.IntegerProperty(required = True)
     attempts_remaining = ndb.IntegerProperty(required = True)
+    guesses = ndb.IntegerProperty(required = True)
     letters_missed = ndb.StringProperty(required = True)
     game_over = ndb.BooleanProperty(required = True, default = False)
     cancelled = ndb.BooleanProperty(required = True, default = False)
@@ -74,12 +75,15 @@ class Game(ndb.Model):
 
         # Create the game, assigning all blanks to the public_word
         game = Game()
-        game.user = user
         game.private_word = word
         game.public_word = '_' * len(word)
         game.attempts_allowed = attempts
         game.attempts_remaining = attempts
+        game.guesses = 0
         game.letters_missed = ''
+        game.game_over = False
+        game.cancelled = False
+        game.user = user
 
         # Get a unique id for this game
         game_id = Game.allocate_ids(size = 1, parent = user)[0]
@@ -99,6 +103,7 @@ class Game(ndb.Model):
         form.public_word = self.public_word
         form.letters_missed = self.letters_missed
         form.attempts_remaining = self.attempts_remaining
+        form.guesses = self.guesses
         form.game_over = self.game_over
         form.cancelled = self.cancelled
         form.message = message
@@ -117,12 +122,12 @@ class Game(ndb.Model):
         self.game_over = True
         self.put()
 
-        # A score is simply the number of guesses remaining
+        # A score is simply the number of misses by the user, lower is better
         score = Score()
         score.user = self.user
         score.date = date.today()
         score.won = won
-        score.attempts_remaining = self.attempts_remaining
+        score.misses = self.attempts_allowed - self.attempts_remaining
 
         # Add the game to the score 'board'
         score.put()
@@ -136,9 +141,10 @@ class GameForm(messages.Message):
     public_word = messages.StringField(3, required = True)
     letters_missed = messages.StringField(4, required = True)
     attempts_remaining = messages.IntegerField(5, required = True)
-    game_over = messages.BooleanField(6, required = True)
-    cancelled = messages.BooleanField(7, required = True)
-    message = messages.StringField(8, required = True)
+    guesses = messages.IntegerField(6, required = True)
+    game_over = messages.BooleanField(7, required = True)
+    cancelled = messages.BooleanField(8, required = True)
+    message = messages.StringField(9, required = True)
 
 
 class GameForms(messages.Message):
@@ -168,16 +174,16 @@ class Score(ndb.Model):
     user = ndb.KeyProperty(required = True, kind = 'User')
     date = ndb.DateProperty(required = True)
     won = ndb.BooleanProperty(required = True)
-    attempts_remaining = ndb.IntegerProperty(required = True)
+    misses = ndb.IntegerProperty(required = True)
 
     def to_form(self):
         """Returns a ScoreForm representation of the Score."""
 
         form = ScoreForm()
         form.user_name = self.user.get().name
-        form.won = self.won
         form.date = str(self.date)
-        form.attempts_remaining = self.attempts_remaining
+        form.won = self.won
+        form.misses = self.misses
 
         return form
 
@@ -188,7 +194,7 @@ class ScoreForm(messages.Message):
     user_name = messages.StringField(1, required = True)
     date = messages.StringField(2, required = True)
     won = messages.BooleanField(3, required = True)
-    attempts_remaining = messages.IntegerField(4, required = True)
+    misses = messages.IntegerField(4, required = True)
 
 
 class ScoreForms(messages.Message):
