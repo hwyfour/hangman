@@ -95,14 +95,16 @@ class HangmanAPI(remote.Service):
             name = 'get_user_rankings',
             http_method = 'GET')
         def get_user_rankings(self, request):
-            """Return all players ranked by their average number of guesses remaining."""
+            """Return all players ranked by their win percentage."""
 
-            # '''
-            # get all users, sort by their average, descending
-            # users need a function to calulate their average score
-            # '''
+            # Update statistics for all users
+            for user in User.query():
+                user.update_stats()
 
-            return UserForms(items = [user.to_form() for user in User.query()])
+            # Generate the list of ranked users
+            users = User.query().order(-User.win_percentage, User.average_misses)
+
+            return UserForms(items = [user.to_form() for user in users])
 
 
         @endpoints.method(request_message = NEW_GAME_REQUEST,

@@ -20,15 +20,45 @@ from words import get_word
 class User(ndb.Model):
     """User profile"""
 
+    '''
+    win_percentage: the win percentage comparing this user's wins to all their other games
+    average_misses: the average number of misses for all games belonging to this user
+    '''
     name = ndb.StringProperty(required = True)
     email = ndb.StringProperty()
+    win_percentage = ndb.FloatProperty(default = 0.0)
+    average_misses = ndb.FloatProperty(default = 0.0)
+
+    def update_stats(self):
+        """Updates win_percentage and average_misses."""
+
+        # Retrieve all games that belong to this user
+        games = Game.query(ancestor = self.key).fetch()
+
+        wins = 0
+        misses = 0
+        num_games = len(games)
+
+        if num_games < 1:
+            return
+
+        # Tally up the number of wins and missed guesses
+        for game in games:
+            wins += 1 if game.won else 0
+            misses += game.attempts_allowed - game.attempts_remaining
+
+        # Calculate the new statistics
+        self.win_percentage = (float(wins) / float(num_games)) * 100
+        self.average_misses = float(misses) / float(num_games)
+
+        self.put()
 
     def to_form(self):
         """Returns a UserForm representation of the User."""
 
         form = UserForm()
         form.name = self.name
-        form.average_misses = 0
+        form.win_percentage = self.win_percentage
 
         return form
 
@@ -37,7 +67,7 @@ class UserForm(messages.Message):
     """Form for outbound User information"""
 
     name = messages.StringField(1, required = True)
-    average_misses = messages.FloatField(2, required = True)
+    win_percentage = messages.FloatField(2, required = True)
 
 
 class UserForms(messages.Message):
@@ -64,6 +94,7 @@ class Game(ndb.Model):
     letters_missed = ndb.StringProperty(required = True)
     game_over = ndb.BooleanProperty(required = True, default = False)
     cancelled = ndb.BooleanProperty(required = True, default = False)
+    won = ndb.BooleanProperty(required = True, default = False)
     user = ndb.KeyProperty(required = True, kind = 'User')
 
     @classmethod
@@ -83,6 +114,7 @@ class Game(ndb.Model):
         game.letters_missed = ''
         game.game_over = False
         game.cancelled = False
+        game.won = False
         game.user = user
 
         # Get a unique id for this game
@@ -106,6 +138,7 @@ class Game(ndb.Model):
         form.guesses = self.guesses
         form.game_over = self.game_over
         form.cancelled = self.cancelled
+        form.won = self.won
         form.message = message
 
         return form
@@ -120,6 +153,7 @@ class Game(ndb.Model):
         """Ends the Game. Accepts a boolean parameter to mark a win or loss."""
 
         self.game_over = True
+        self.won = won
         self.put()
 
         # A score is simply the number of misses by the user, lower is better
@@ -144,7 +178,8 @@ class GameForm(messages.Message):
     guesses = messages.IntegerField(6, required = True)
     game_over = messages.BooleanField(7, required = True)
     cancelled = messages.BooleanField(8, required = True)
-    message = messages.StringField(9, required = True)
+    won = messages.BooleanField(9, required = True)
+    message = messages.StringField(10, required = True)
 
 
 class GameForms(messages.Message):
