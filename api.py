@@ -18,6 +18,7 @@ from google.appengine.api import memcache
 from google.appengine.api import taskqueue
 
 from models import User, UserForms
+from models import GuessForm, GuessForms
 from models import Game, GameForm, GameForms, NewGameForm, MakeMoveForm
 from models import Score, ScoreForms
 from models import StringMessage
@@ -167,6 +168,22 @@ class HangmanAPI(remote.Service):
             return game.to_form('Game cancelled!')
 
 
+        @endpoints.method(request_message = GET_GAME_REQUEST,
+            response_message = GuessForms,
+            path = 'game/{urlsafe_game_key}/history',
+            name = 'get_game_history',
+            http_method = 'GET')
+        def get_game_history(self, request):
+            """Return the game's guess history."""
+
+            game = get_by_urlsafe(request.urlsafe_game_key, Game)
+
+            if not game:
+                raise endpoints.NotFoundException('Game not found!')
+
+            return game.guess_forms()
+
+
         @endpoints.method(request_message = MAKE_MOVE_REQUEST,
             response_message = GameForm,
             path = 'game/{urlsafe_game_key}',
@@ -184,7 +201,6 @@ class HangmanAPI(remote.Service):
                 return game.to_form('Game already over!')
 
             guess = request.guess
-            game.guesses += 1
 
             # if the guess is more than one character, we're guessing the word
             if len(guess) > 1:
@@ -222,17 +238,23 @@ class HangmanAPI(remote.Service):
             # if we have the full word, we win!
             if game.public_word == game.private_word:
                 msg = msg + ' You win!'
+                game.guesses.append({'guess': guess, 'result': msg, 'state': game.public_word})
+
                 game.end_game(True)
                 return game.to_form(msg)
 
             # if we have no attempts left, the game is over
             if game.attempts_remaining < 1:
                 msg = msg + ' Game over!'
+                game.guesses.append({'guess': guess, 'result': msg, 'state': game.public_word})
+
                 game.end_game(False)
                 return game.to_form(msg)
 
             # or, the game is still on, so save the current state and return that to the player
+            game.guesses.append({'guess': guess, 'result': msg, 'state': game.public_word})
             game.put()
+
             return game.to_form(msg)
 
 

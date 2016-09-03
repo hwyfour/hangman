@@ -76,6 +76,22 @@ class UserForms(messages.Message):
     items = messages.MessageField(UserForm, 1, repeated = True)
 
 
+# Definitions for the Guess ===================================================================== #
+
+class GuessForm(messages.Message):
+    """Form for outbound Guess information"""
+
+    guess = messages.StringField(1, required = True)
+    result = messages.StringField(2, required = True)
+    state = messages.BooleanField(3, required = True)
+
+
+class GuessForms(messages.Message):
+    """Return multiple GuessForms"""
+
+    items = messages.MessageField(GuessForm, 1, repeated = True)
+
+
 # Definitions for the Game ====================================================================== #
 
 class Game(ndb.Model):
@@ -90,7 +106,7 @@ class Game(ndb.Model):
     public_word = ndb.StringProperty(required = True)
     attempts_allowed = ndb.IntegerProperty(required = True)
     attempts_remaining = ndb.IntegerProperty(required = True)
-    guesses = ndb.IntegerProperty(required = True)
+    guesses = ndb.PickleProperty(required = True)
     letters_missed = ndb.StringProperty(required = True)
     game_over = ndb.BooleanProperty(required = True, default = False)
     cancelled = ndb.BooleanProperty(required = True, default = False)
@@ -110,7 +126,7 @@ class Game(ndb.Model):
         game.public_word = '_' * len(word)
         game.attempts_allowed = attempts
         game.attempts_remaining = attempts
-        game.guesses = 0
+        game.guesses = []
         game.letters_missed = ''
         game.game_over = False
         game.cancelled = False
@@ -135,13 +151,28 @@ class Game(ndb.Model):
         form.public_word = self.public_word
         form.letters_missed = self.letters_missed
         form.attempts_remaining = self.attempts_remaining
-        form.guesses = self.guesses
+        # form.guesses = self.guesses
         form.game_over = self.game_over
         form.cancelled = self.cancelled
         form.won = self.won
         form.message = message
 
         return form
+
+    def guess_forms(self):
+        """Returns a GuessForms representation of each guess in the Game."""
+
+        forms = []
+
+        for guess in self.guesses:
+            form = GuessForm()
+            form.guess = guess.guess
+            form.result = guess.result
+            form.state = guess.state
+
+            forms.append(form)
+
+        return GuessForms(items = forms)
 
     def cancel_game(self):
         """Cancels the Game."""
@@ -175,7 +206,7 @@ class GameForm(messages.Message):
     public_word = messages.StringField(3, required = True)
     letters_missed = messages.StringField(4, required = True)
     attempts_remaining = messages.IntegerField(5, required = True)
-    guesses = messages.IntegerField(6, required = True)
+    # guesses = messages.IntegerField(6, required = True)
     game_over = messages.BooleanField(7, required = True)
     cancelled = messages.BooleanField(8, required = True)
     won = messages.BooleanField(9, required = True)
