@@ -18,11 +18,11 @@ from words import get_word
 # Definitions for the User ====================================================================== #
 
 class User(ndb.Model):
-    """User profile"""
+    """User object"""
 
     '''
-    win_percentage: The User's win percentage over all his Games
-    average_misses: The User's average number of misses over all his Games
+    win_percentage: The win percentage for all Games belonging to this User
+    average_misses: The average number of misses for all Games belonging to this User
     '''
     name = ndb.StringProperty(required = True)
     email = ndb.StringProperty()
@@ -35,7 +35,7 @@ class User(ndb.Model):
         return Game.query(ancestor = self.key).fetch()
 
     def update_stats(self):
-        """Updates win_percentage and average_misses."""
+        """Update win_percentage and average_misses."""
 
         games = _get_games()
 
@@ -44,10 +44,9 @@ class User(ndb.Model):
         if num_games < 1:
             return
 
-        wins = 0
-        misses = 0
+        wins, misses = 0
 
-        # Tally up the number of wins and missed guesses
+        # Tally up the number of wins and misses
         for game in games:
             wins += 1 if game.won else 0
             misses += game.attempts_allowed - game.attempts_remaining
@@ -59,14 +58,14 @@ class User(ndb.Model):
         self.put()
 
     def get_gameforms(self):
-        """Returns a GameForms representation of the User's active Games."""
+        """Returns a GameForms representation all active Games belonging to this User."""
 
         games = _get_games()
 
         game_forms = []
 
-        # For each of this player's games, append only the ones that are currently active
         for game in games:
+            # Do not append a Game if it is over or cancelled
             if game.game_over or game.cancelled:
                 continue
 
