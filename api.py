@@ -93,7 +93,8 @@ class HangmanAPI(remote.Service):
             for user in User.query():
                 user.update_stats()
 
-            # Generate the list of ranked users
+            # Generate the list of ranked Users, ranked from high to low win %
+            # Ties broken by the average misses of the tied Users, lower wins
             users = User.query().order(-User.win_percentage, User.average_misses)
 
             return UserForms(items = [user.to_form() for user in users])
