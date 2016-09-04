@@ -79,7 +79,7 @@ class HangmanAPI(remote.Service):
             if not user:
                 raise endpoints.NotFoundException('A User with that name does not exist!')
 
-            return user.get_gameforms()
+            return GameForms(items = [game.to_form() for game in user.get_games()])
 
 
         @endpoints.method(response_message = UserForms,
@@ -173,7 +173,7 @@ class HangmanAPI(remote.Service):
             if not game:
                 raise endpoints.NotFoundException('A Game with that key does not exist!')
 
-            return game.get_guessforms()
+            return GuessForms(items = [guess.to_form() for guess in game.guesses])
 
 
         @endpoints.method(request_message = MAKE_MOVE_REQUEST,

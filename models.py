@@ -57,21 +57,21 @@ class User(ndb.Model):
 
         self.put()
 
-    def get_gameforms(self):
-        """Return a GameForms representation all active Games belonging to this User."""
+    def get_games(self):
+        """Return a collection of all active Games belonging to this User."""
 
         games = self._get_games()
 
-        game_forms = []
+        game_collection = []
 
         for game in games:
             # Do not append a Game if it is over or cancelled
             if game.game_over or game.cancelled:
                 continue
 
-            game_forms.append(game.to_form())
+            game_collection.append(game)
 
-        return GameForms(items = game_forms)
+        return game_collection
 
     def to_form(self):
         """Return a UserForm representation of the User."""
@@ -179,22 +179,6 @@ class Game(ndb.Model):
 
         return guess_obj['message']
 
-    def get_guessforms(self):
-        """Return a GuessForms representation of each Guess in the Game."""
-
-        forms = []
-
-        for guess in self.guesses:
-            form = GuessForm()
-            form.guess = guess['guess']
-            form.miss = guess['miss']
-            form.message = guess['message']
-            form.state = guess['state']
-
-            forms.append(form)
-
-        return GuessForms(items = forms)
-
     def cancel_game(self):
         """Cancel the Game."""
 
@@ -226,7 +210,7 @@ class Game(ndb.Model):
         form.user_name = self.user.get().name
         form.public_word = self.public_word
         form.attempts_remaining = self.attempts_remaining
-        form.guesses = self.get_guessforms()
+        form.guesses = self.guesses
         form.game_over = self.game_over
         form.cancelled = self.cancelled
         form.won = self.won
@@ -242,7 +226,7 @@ class GameForm(messages.Message):
     user_name = messages.StringField(2, required = True)
     public_word = messages.StringField(3, required = True)
     attempts_remaining = messages.IntegerField(4, required = True)
-    guesses = messages.MessageField(GuessForms, 5, required = True)
+    guesses = messages.MessageField(GuessForm, 5, repeated = True)
     game_over = messages.BooleanField(6, required = True)
     cancelled = messages.BooleanField(7, required = True)
     won = messages.BooleanField(8, required = True)
