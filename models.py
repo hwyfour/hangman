@@ -21,26 +21,31 @@ class User(ndb.Model):
     """User profile"""
 
     '''
-    win_percentage: the win percentage comparing this user's wins to all their other games
-    average_misses: the average number of misses for all games belonging to this user
+    win_percentage: The User's win percentage over all his Games
+    average_misses: The User's average number of misses over all his Games
     '''
     name = ndb.StringProperty(required = True)
     email = ndb.StringProperty()
     win_percentage = ndb.FloatProperty(default = 0.0)
     average_misses = ndb.FloatProperty(default = 0.0)
 
+    def _get_games(self):
+        """Return all Games belonging to this User."""
+
+        return Game.query(ancestor = self.key).fetch()
+
     def update_stats(self):
         """Updates win_percentage and average_misses."""
 
-        # Retrieve all games that belong to this user
-        games = Game.query(ancestor = self.key).fetch()
+        games = _get_games()
 
-        wins = 0
-        misses = 0
         num_games = len(games)
 
         if num_games < 1:
             return
+
+        wins = 0
+        misses = 0
 
         # Tally up the number of wins and missed guesses
         for game in games:
@@ -52,6 +57,22 @@ class User(ndb.Model):
         self.average_misses = float(misses) / float(num_games)
 
         self.put()
+
+    def get_gameforms(self):
+        """Returns a GameForms representation of the User's active Games."""
+
+        games = _get_games()
+
+        game_forms = []
+
+        # For each of this player's games, append only the ones that are currently active
+        for game in games:
+            if game.game_over or game.cancelled:
+                continue
+
+            game_forms.append(game.to_form())
+
+        return GameForms(items = game_forms)
 
     def to_form(self):
         """Returns a UserForm representation of the User."""
@@ -159,8 +180,8 @@ class Game(ndb.Model):
 
         return form
 
-    def guess_forms(self):
-        """Returns a GuessForms representation of each guess in the Game."""
+    def get_guessforms(self):
+        """Returns a GuessForms representation of each Guess in the Game."""
 
         forms = []
 
@@ -227,7 +248,7 @@ class NewGameForm(messages.Message):
 
 
 class MakeMoveForm(messages.Message):
-    """Form to make a move in an existing Game"""
+    """Form to register a Guess in an existing Game"""
 
     guess = messages.StringField(1, required = True)
 
