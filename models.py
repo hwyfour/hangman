@@ -37,7 +37,7 @@ class User(ndb.Model):
     def update_stats(self):
         """Update win_percentage and average_misses."""
 
-        games = _get_games()
+        games = self._get_games()
 
         num_games = len(games)
 
@@ -60,7 +60,7 @@ class User(ndb.Model):
     def get_gameforms(self):
         """Return a GameForms representation all active Games belonging to this User."""
 
-        games = _get_games()
+        games = self._get_games()
 
         game_forms = []
 
@@ -102,8 +102,9 @@ class GuessForm(messages.Message):
     """Form for outbound Guess information"""
 
     guess = messages.StringField(1, required = True)
-    result = messages.StringField(2, required = True)
-    state = messages.BooleanField(3, required = True)
+    miss = messages.BooleanField(2, required = True)
+    message = messages.StringField(3, required = True)
+    state = messages.StringField(4, required = True)
 
 
 class GuessForms(messages.Message):
@@ -120,6 +121,8 @@ class Game(ndb.Model):
     '''
     private_word: The word assigned for this Game - eg. 'boat'
     public_word: The User's current knowledge of the word - eg. '__at'
+    guesses: An array of Guesses to track each Guess the User makes
+    misses: A set for tracking unique missed Guesses for easy counting
     '''
     private_word = ndb.StringProperty(required = True)
     public_word = ndb.StringProperty(required = True)
@@ -146,7 +149,7 @@ class Game(ndb.Model):
         game.attempts_allowed = attempts
         game.attempts_remaining = attempts
         game.guesses = []
-        game.misses = []
+        game.misses = set()
         game.game_over = False
         game.cancelled = False
         game.won = False
@@ -164,20 +167,29 @@ class Game(ndb.Model):
     def guess(self, guess = ''):
         """Make a move with the provided Guess."""
 
-        return 'guess %' % guess
+        guess_obj = {
+            'guess': guess,
+            'miss': False,
+            'message': 'You made a guess',
+            'state': 'Okay I guess'
+        }
 
-    def get_guessforms(self, type = 'guess'):
+        self.guesses.append(guess_obj)
+        self.put()
+
+        return guess_obj['message']
+
+    def get_guessforms(self):
         """Return a GuessForms representation of each Guess in the Game."""
 
         forms = []
 
-        target = self.guesses if type is 'guess' else self.misses
-
-        for guess in target:
+        for guess in self.guesses:
             form = GuessForm()
-            form.guess = guess.guess
-            form.result = guess.result
-            form.state = guess.state
+            form.guess = guess['guess']
+            form.miss = guess['miss']
+            form.message = guess['message']
+            form.state = guess['state']
 
             forms.append(form)
 
@@ -214,8 +226,7 @@ class Game(ndb.Model):
         form.user_name = self.user.get().name
         form.public_word = self.public_word
         form.attempts_remaining = self.attempts_remaining
-        form.guesses = get_guessforms()
-        form.misses = get_guessforms(type = 'miss')
+        form.guesses = self.get_guessforms()
         form.game_over = self.game_over
         form.cancelled = self.cancelled
         form.won = self.won
@@ -231,12 +242,11 @@ class GameForm(messages.Message):
     user_name = messages.StringField(2, required = True)
     public_word = messages.StringField(3, required = True)
     attempts_remaining = messages.IntegerField(4, required = True)
-    guesses = messages.MessageField(GuessForm, 5, repeated = True)
-    misses = messages.MessageField(GuessForm, 6, repeated = True)
-    game_over = messages.BooleanField(7, required = True)
-    cancelled = messages.BooleanField(8, required = True)
-    won = messages.BooleanField(9, required = True)
-    message = messages.StringField(10, required = True)
+    guesses = messages.MessageField(GuessForms, 5, required = True)
+    game_over = messages.BooleanField(6, required = True)
+    cancelled = messages.BooleanField(7, required = True)
+    won = messages.BooleanField(8, required = True)
+    message = messages.StringField(9, required = True)
 
 
 class GameForms(messages.Message):
