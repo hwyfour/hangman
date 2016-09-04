@@ -58,7 +58,7 @@ class User(ndb.Model):
         self.put()
 
     def get_gameforms(self):
-        """Returns a GameForms representation all active Games belonging to this User."""
+        """Return a GameForms representation all active Games belonging to this User."""
 
         games = _get_games()
 
@@ -74,7 +74,7 @@ class User(ndb.Model):
         return GameForms(items = game_forms)
 
     def to_form(self):
-        """Returns a UserForm representation of the User."""
+        """Return a UserForm representation of the User."""
 
         form = UserForm()
         form.name = self.name
@@ -118,16 +118,15 @@ class Game(ndb.Model):
     """Game object"""
 
     '''
-    private_word: the word assigned for this game eg. 'boat'
-    public_word: the player's current knowledge of the word eg. '__at'
-    letters_missed: a string containing all the letters the player has guessed incorrectly
+    private_word: The word assigned for this Game - eg. 'boat'
+    public_word: The User's current knowledge of the word - eg. '__at'
     '''
     private_word = ndb.StringProperty(required = True)
     public_word = ndb.StringProperty(required = True)
     attempts_allowed = ndb.IntegerProperty(required = True)
     attempts_remaining = ndb.IntegerProperty(required = True)
     guesses = ndb.PickleProperty(required = True)
-    letters_missed = ndb.StringProperty(required = True)
+    misses = ndb.PickleProperty()
     game_over = ndb.BooleanProperty(required = True, default = False)
     cancelled = ndb.BooleanProperty(required = True, default = False)
     won = ndb.BooleanProperty(required = True, default = False)
@@ -135,19 +134,19 @@ class Game(ndb.Model):
 
     @classmethod
     def new_game(cls, user, attempts = 6):
-        """Creates and returns a new Game."""
+        """Create a new Game."""
 
         # Get a random word from our dictionary, brought to you by our imported words.py
         word = get_word()
 
-        # Create the game, assigning all blanks to the public_word
+        # Create the Game, assigning all blanks to the public_word
         game = Game()
         game.private_word = word
         game.public_word = '_' * len(word)
         game.attempts_allowed = attempts
         game.attempts_remaining = attempts
         game.guesses = []
-        game.letters_missed = ''
+        game.misses = []
         game.game_over = False
         game.cancelled = False
         game.won = False
@@ -155,36 +154,21 @@ class Game(ndb.Model):
 
         # Get a unique id for this game
         game_id = Game.allocate_ids(size = 1, parent = user)[0]
-        # So we can link this game as a descendant to this user for easy querying
+        # So we can link this Game as a descendant to this User for easy querying
         game.key = ndb.Key(Game, game_id, parent = user)
-        # Store the new game
+        # Store the new Game
         game.put()
 
         return game
 
-    def to_form(self, message = ''):
-        """Returns a GameForm representation of the Game."""
-
-        form = GameForm()
-        form.urlsafe_key = self.key.urlsafe()
-        form.user_name = self.user.get().name
-        form.public_word = self.public_word
-        form.letters_missed = self.letters_missed
-        form.attempts_remaining = self.attempts_remaining
-        # form.guesses = self.guesses
-        form.game_over = self.game_over
-        form.cancelled = self.cancelled
-        form.won = self.won
-        form.message = message
-
-        return form
-
-    def get_guessforms(self):
-        """Returns a GuessForms representation of each Guess in the Game."""
+    def get_guessforms(self, type = 'guess'):
+        """Return a GuessForms representation of each Guess in the Game."""
 
         forms = []
 
-        for guess in self.guesses:
+        target = self.guesses if type is 'guess' else self.misses
+
+        for guess in target:
             form = GuessForm()
             form.guess = guess.guess
             form.result = guess.result
@@ -195,27 +179,44 @@ class Game(ndb.Model):
         return GuessForms(items = forms)
 
     def cancel_game(self):
-        """Cancels the Game."""
+        """Cancel the Game."""
 
         self.cancelled = True
         self.put()
 
     def end_game(self, won = False):
-        """Ends the Game. Accepts a boolean parameter to mark a win or loss."""
+        """End the Game. Accepts a boolean parameter to mark a win or loss."""
 
         self.game_over = True
         self.won = won
         self.put()
 
-        # A score is simply the number of misses by the user, lower is better
+        # A Score is simply the number of misses by the User. Lower is better
         score = Score()
         score.user = self.user
         score.date = date.today()
         score.won = won
         score.misses = self.attempts_allowed - self.attempts_remaining
 
-        # Add the game to the score 'board'
+        # Add the Game to the scoreboard
         score.put()
+
+    def to_form(self, message = ''):
+        """Return a GameForm representation of the Game."""
+
+        form = GameForm()
+        form.urlsafe_key = self.key.urlsafe()
+        form.user_name = self.user.get().name
+        form.public_word = self.public_word
+        form.attempts_remaining = self.attempts_remaining
+        form.guesses = get_guessforms()
+        form.misses = get_guessforms(type = 'miss')
+        form.game_over = self.game_over
+        form.cancelled = self.cancelled
+        form.won = self.won
+        form.message = message
+
+        return form
 
 
 class GameForm(messages.Message):
@@ -224,9 +225,9 @@ class GameForm(messages.Message):
     urlsafe_key = messages.StringField(1, required = True)
     user_name = messages.StringField(2, required = True)
     public_word = messages.StringField(3, required = True)
-    letters_missed = messages.StringField(4, required = True)
-    attempts_remaining = messages.IntegerField(5, required = True)
-    # guesses = messages.IntegerField(6, required = True)
+    attempts_remaining = messages.IntegerField(4, required = True)
+    guesses = messages.MessageField(GuessForm, 5, repeated = True)
+    misses = messages.MessageField(GuessForm, 6, repeated = True)
     game_over = messages.BooleanField(7, required = True)
     cancelled = messages.BooleanField(8, required = True)
     won = messages.BooleanField(9, required = True)
@@ -263,7 +264,7 @@ class Score(ndb.Model):
     misses = ndb.IntegerProperty(required = True)
 
     def to_form(self):
-        """Returns a ScoreForm representation of the Score."""
+        """Return a ScoreForm representation of the Score."""
 
         form = ScoreForm()
         form.user_name = self.user.get().name
