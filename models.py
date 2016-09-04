@@ -44,7 +44,8 @@ class User(ndb.Model):
         if num_games < 1:
             return
 
-        wins, misses = 0
+        wins = 0
+        misses = 0
 
         # Tally up the number of wins and misses
         for game in games:
@@ -122,14 +123,12 @@ class Game(ndb.Model):
     private_word: The word assigned for this Game - eg. 'boat'
     public_word: The User's current knowledge of the word - eg. '__at'
     guesses: An array of Guesses to track each Guess the User makes
-    misses: A set for tracking unique missed Guesses for easy counting
     '''
     private_word = ndb.StringProperty(required = True)
     public_word = ndb.StringProperty(required = True)
     attempts_allowed = ndb.IntegerProperty(required = True)
     attempts_remaining = ndb.IntegerProperty(required = True)
     guesses = ndb.PickleProperty(required = True)
-    misses = ndb.PickleProperty()
     game_over = ndb.BooleanProperty(required = True, default = False)
     cancelled = ndb.BooleanProperty(required = True, default = False)
     won = ndb.BooleanProperty(required = True, default = False)
@@ -149,7 +148,6 @@ class Game(ndb.Model):
         game.attempts_allowed = attempts
         game.attempts_remaining = attempts
         game.guesses = []
-        game.misses = set()
         game.game_over = False
         game.cancelled = False
         game.won = False
@@ -167,13 +165,81 @@ class Game(ndb.Model):
     def guess(self, guess = ''):
         """Make a move with the provided Guess."""
 
+        # Ensure the Guess is a string
+        guess = str(guess)
+
+        # Create a Guess object to work with
         guess_obj = {
             'guess': guess,
-            'miss': False,
-            'message': 'You made a guess',
-            'state': 'Okay I guess'
+            'miss': True,
+            'message': 'You guessed wrong!',
+            'state': self.public_word
         }
 
+        # The Guess is empty
+        if len(guess) < 1:
+            # Invalid Guess. Update the message and save the Guess
+            guess_obj['message'] = 'You must guess a character or word!'
+            self.guesses.append(guess_obj)
+            self.put()
+
+            return guess_obj['message']
+
+        # The Guess is a character
+        if len(guess) == 1:
+            # Count how many occurences of this Guess character are in the word
+            hit_count = self.private_word.count(guess)
+
+            # The character is not in the word
+            if hit_count == 0:
+                guess_obj['message'] = 'Sorry, {} is not in the word!'.format(guess)
+                self.attempts_remaining -= 1
+
+            # The character is in the word
+            elif hit_count == 1:
+                guess_obj['message'] = 'Nice! {} is in the word!'.format(guess.capitalize())
+                guess_obj['miss'] = False
+
+            # The character is in the word more than once
+            else:
+                guess_obj['message'] = 'Wow! {} is in the word {} times!'.format(
+                    guess.capitalize(), hit_count)
+                guess_obj['miss'] = False
+
+            # Drop the Guess character into the public word where it is found
+            char_locations = [i for i, ch in enumerate(self.private_word) if ch == guess]
+            for location in char_locations:
+                self.public_word = '{}{}{}'.format(
+                    self.public_word[:location], guess, self.public_word[location + 1:])
+
+        # The Guess is a word
+        else:
+            if guess == self.private_word:
+                guess_obj['message'] = 'Amazing! You guessed the word!'
+                guess_obj['miss'] = False
+
+                # Set the public word to the same as the private word so the User can see
+                self.public_word = self.private_word
+
+            # The Guess does not match the word
+            else:
+                guess_obj['message'] = 'Sorry, {} is not the word!'.format(guess)
+                self.attempts_remaining -= 1
+
+        # Update the state of the public word in the Guess
+        guess_obj['state'] = self.public_word
+
+        # Check if the Game has been won
+        if self.public_word == self.private_word:
+            guess_obj['message'] = '{} You win!'.format(guess_obj['message'])
+            self.end_game(won = True)
+
+        # Check if there are any turns remaining
+        if self.attempts_remaining == 0 and self.won == False:
+            guess_obj['message'] = '{} You lose!'.format(guess_obj['message'])
+            self.end_game()
+
+        # Add the Guess to our list and save the Game
         self.guesses.append(guess_obj)
         self.put()
 
