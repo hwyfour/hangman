@@ -260,6 +260,7 @@ class Game(ndb.Model):
         """Cancel the Game."""
 
         self.cancelled = True
+        self.game_over = True
         self.put()
 
     def end_game(self, won = False):
@@ -268,6 +269,10 @@ class Game(ndb.Model):
         self.game_over = True
         self.won = won
         self.put()
+
+        # Don't track a Score unless a User wins
+        if not self.won:
+            return
 
         # A Score is simply the number of misses by the User. Lower is better
         score = Score()
