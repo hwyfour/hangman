@@ -130,7 +130,7 @@ class Game(ndb.Model):
     attempts_allowed = ndb.IntegerProperty(required = True)
     attempts_remaining = ndb.IntegerProperty(required = True)
     guesses = ndb.PickleProperty(required = True)
-    misses = ndb.PickleProperty()
+    guesses_set = ndb.PickleProperty()
     game_over = ndb.BooleanProperty(required = True, default = False)
     cancelled = ndb.BooleanProperty(required = True, default = False)
     won = ndb.BooleanProperty(required = True, default = False)
@@ -150,7 +150,7 @@ class Game(ndb.Model):
         game.attempts_allowed = attempts
         game.attempts_remaining = attempts
         game.guesses = []
-        game.misses = set()
+        game.guesses_set = set()
         game.game_over = False
         game.cancelled = False
         game.won = False
@@ -196,7 +196,6 @@ class Game(ndb.Model):
             # The character is not in the word
             if hit_count == 0:
                 guess_obj['message'] = 'Sorry, {} is not in the word!'.format(guess)
-                self.misses.add(guess)
                 self.attempts_remaining -= 1
 
             # The character is in the word
@@ -228,15 +227,15 @@ class Game(ndb.Model):
             # The Guess does not match the word
             else:
                 guess_obj['message'] = 'Sorry, {} is not the word!'.format(guess)
-                self.misses.add(guess)
                 self.attempts_remaining -= 1
 
         # Update the state of the public word in the Guess
         guess_obj['state'] = self.public_word
 
         # Check if the Guess been made before
-        if guess in self.guesses:
+        if guess in self.guesses_set:
             guess_obj['message'] = 'You guessed {} already! Your guess still counts!'.format(guess)
+            self.attempts_remaining -= 1
 
         # Check if the Game has been won
         if self.public_word == self.private_word:
@@ -247,6 +246,9 @@ class Game(ndb.Model):
         if self.attempts_remaining == 0 and self.won == False:
             guess_obj['message'] = '{} You lose!'.format(guess_obj['message'])
             self.end_game()
+
+        # Add the Guess to our simple set for easy duplicate checking
+        self.guesses_set.add(guess)
 
         # Add the Guess to our list and save the Game
         self.guesses.append(guess_obj)
