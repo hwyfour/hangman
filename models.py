@@ -161,6 +161,11 @@ class Game(ndb.Model):
 
         return game
 
+    def guess(self, guess = ''):
+        """Make a move with the provided Guess."""
+
+        return 'guess %' % guess
+
     def get_guessforms(self, type = 'guess'):
         """Return a GuessForms representation of each Guess in the Game."""
 

@@ -190,64 +190,11 @@ class HangmanAPI(remote.Service):
                 raise endpoints.NotFoundException('A Game with that key does not exist!')
 
             if game.game_over:
-                return game.to_form('Game already over!')
+                return game.to_form('This Game is already over!')
 
-            guess = request.guess
+            message = game.guess(request.guess)
 
-            # if the guess is more than one character, we're guessing the word
-            if len(guess) > 1:
-                # if the guess matches the word, we're done!
-                if guess == game.private_word:
-                    msg = 'You correctly guessed the whole word!'
-                    # copy the private word over to replace all characters
-                    game.public_word = game.private_word
-                else:
-                    msg = 'That is not the word!'
-                    # there are no letters to record, but we do mark a missed attempt
-                    game.attempts_remaining -= 1
-
-            # otherwise we're working with a single character guess
-            else:
-                # count how many occurences of that character are in the word
-                hit_count = game.private_word.count(guess)
-
-                if hit_count > 0:
-                    msg = 'That letter is in the word %s times!' % hit_count
-                    # replace the spaces in the public word with this character where necessary
-                    private_word = game.private_word
-                    char_locations = [i for i, ch in enumerate(private_word) if ch == guess]
-
-                    for location in char_locations:
-                        pw = game.public_word
-                        pw = pw[:location] + guess + pw[location + 1:]
-                        game.public_word = pw
-                else:
-                    msg = 'That letter is not in the word!'
-                    # record the letter miss, and add that letter to the miss pile
-                    game.attempts_remaining -= 1
-                    game.letters_missed = game.letters_missed + guess
-
-            # if we have the full word, we win!
-            if game.public_word == game.private_word:
-                msg = msg + ' You win!'
-                game.guesses.append({'guess': guess, 'result': msg, 'state': game.public_word})
-
-                game.end_game(True)
-                return game.to_form(msg)
-
-            # if we have no attempts left, the game is over
-            if game.attempts_remaining < 1:
-                msg = msg + ' Game over!'
-                game.guesses.append({'guess': guess, 'result': msg, 'state': game.public_word})
-
-                game.end_game(False)
-                return game.to_form(msg)
-
-            # or, the game is still on, so save the current state and return that to the player
-            game.guesses.append({'guess': guess, 'result': msg, 'state': game.public_word})
-            game.put()
-
-            return game.to_form(msg)
+            return game.to_form(message)
 
 
         @endpoints.method(response_message = ScoreForms,
