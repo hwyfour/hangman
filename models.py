@@ -123,12 +123,14 @@ class Game(ndb.Model):
     private_word: The word assigned for this Game - eg. 'boat'
     public_word: The User's current knowledge of the word - eg. '__at'
     guesses: An array of Guesses to track each Guess the User makes
+    misses: A set for tracking unique missed Guesses for easy reference
     '''
     private_word = ndb.StringProperty(required = True)
     public_word = ndb.StringProperty(required = True)
     attempts_allowed = ndb.IntegerProperty(required = True)
     attempts_remaining = ndb.IntegerProperty(required = True)
     guesses = ndb.PickleProperty(required = True)
+    misses = ndb.PickleProperty()
     game_over = ndb.BooleanProperty(required = True, default = False)
     cancelled = ndb.BooleanProperty(required = True, default = False)
     won = ndb.BooleanProperty(required = True, default = False)
@@ -148,6 +150,7 @@ class Game(ndb.Model):
         game.attempts_allowed = attempts
         game.attempts_remaining = attempts
         game.guesses = []
+        game.misses = set()
         game.game_over = False
         game.cancelled = False
         game.won = False
@@ -193,6 +196,7 @@ class Game(ndb.Model):
             # The character is not in the word
             if hit_count == 0:
                 guess_obj['message'] = 'Sorry, {} is not in the word!'.format(guess)
+                self.misses.add(guess)
                 self.attempts_remaining -= 1
 
             # The character is in the word
@@ -224,10 +228,15 @@ class Game(ndb.Model):
             # The Guess does not match the word
             else:
                 guess_obj['message'] = 'Sorry, {} is not the word!'.format(guess)
+                self.misses.add(guess)
                 self.attempts_remaining -= 1
 
         # Update the state of the public word in the Guess
         guess_obj['state'] = self.public_word
+
+        # Check if the Guess been made before
+        if guess in self.guesses:
+            guess_obj['message'] = 'You guessed {} already! Your guess still counts!'.format(guess)
 
         # Check if the Game has been won
         if self.public_word == self.private_word:
