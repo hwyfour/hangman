@@ -29,15 +29,11 @@ class User(ndb.Model):
     win_percentage = ndb.FloatProperty(default = 0.0)
     average_misses = ndb.FloatProperty(default = 0.0)
 
-    def _get_games(self):
-        """Return all Games belonging to this User."""
-
-        return Game.query(ancestor = self.key).fetch()
-
     def update_stats(self):
         """Update win_percentage and average_misses."""
 
-        games = self._get_games()
+        # Get all Games belonging to this User
+        games = Game.query(ancestor = self.key).fetch()
 
         num_games = len(games)
 
@@ -61,7 +57,8 @@ class User(ndb.Model):
     def get_games(self):
         """Return a collection of all active Games belonging to this User."""
 
-        games = self._get_games()
+        # Get all Games belonging to this User
+        games = Game.query(ancestor = self.key).fetch()
 
         game_collection = []
 
@@ -123,7 +120,7 @@ class Game(ndb.Model):
     private_word: The word assigned for this Game - eg. 'boat'
     public_word: The User's current knowledge of the word - eg. '__at'
     guesses: An array of Guesses to track each Guess the User makes
-    misses: A set for tracking unique missed Guesses for easy reference
+    guesses_set: A set for tracking unique Guesses for easy lookup
     '''
     private_word = ndb.StringProperty(required = True)
     public_word = ndb.StringProperty(required = True)
@@ -181,12 +178,8 @@ class Game(ndb.Model):
 
         # The Guess is empty
         if len(guess) < 1:
-            # Invalid Guess. Update the message and save the Guess
+            # Invalid Guess.
             guess_obj['message'] = 'You must guess a character or word!'
-            self.guesses.append(guess_obj)
-            self.put()
-
-            return guess_obj['message']
 
         # The Guess is a character
         if len(guess) == 1:
@@ -196,7 +189,6 @@ class Game(ndb.Model):
             # The character is not in the word
             if hit_count == 0:
                 guess_obj['message'] = 'Sorry, {} is not in the word!'.format(guess)
-                self.attempts_remaining -= 1
 
             # The character is in the word
             elif hit_count == 1:
@@ -227,22 +219,24 @@ class Game(ndb.Model):
             # The Guess does not match the word
             else:
                 guess_obj['message'] = 'Sorry, {} is not the word!'.format(guess)
-                self.attempts_remaining -= 1
 
         # Update the state of the public word in the Guess
         guess_obj['state'] = self.public_word
 
-        # Check if the Guess been made before
-        if guess in self.guesses_set:
-            guess_obj['message'] = 'You guessed {} already! Your guess still counts!'.format(guess)
+        # Subtract an attempt if the Guess missed, or is a duplicate
+        if guess_obj['miss'] or guess in self.guesses_set:
             self.attempts_remaining -= 1
 
-        # Check if the Game has been won
+        # If the Guess is a duplicate, tell the User
+        if guess in self.guesses_set:
+            guess_obj['message'] = 'You guessed {} already! Your guess still counts!'.format(guess)
+
+        # If the public word is the same as the private word, the Game is won
         if self.public_word == self.private_word:
             guess_obj['message'] = '{} You win!'.format(guess_obj['message'])
             self.end_game(won = True)
 
-        # Check if there are any turns remaining
+        # If there are no attempts remaingin and the Game has not yet been won, the Game is lost
         if self.attempts_remaining == 0 and self.won == False:
             guess_obj['message'] = '{} You lose!'.format(guess_obj['message'])
             self.end_game()

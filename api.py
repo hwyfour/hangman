@@ -4,10 +4,7 @@
 """
 api.py
 
-Create and configure the Game API exposing the resources.
-This can also contain game logic. For more complex games it would be wise to
-move game logic to another file. Ideally the API will be simple, concerned
-primarily with communication to/from the API's users.
+Contains the API endpoints for the Hangman game.
 """
 
 import endpoints
@@ -246,6 +243,7 @@ class HangmanAPI(remote.Service):
             """Get the cached average moves remaining."""
 
             return StringMessage(message = memcache.get(MEMCACHE_MOVES_REMAINING) or '')
+
 
         @staticmethod
         def _cache_average_attempts():
