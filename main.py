@@ -17,8 +17,7 @@ from models import User
 class SendReminderEmail(webapp2.RequestHandler):
 
     def get(self):
-        """Send a reminder email to each User with an email about games.
-        Called every hour using a cron job"""
+        """Send a reminder email each hour to each User with active Games using a cron job."""
 
         app_id = app_identity.get_application_id()
         users = User.query(User.email != None)
@@ -26,8 +25,12 @@ class SendReminderEmail(webapp2.RequestHandler):
         subject = 'This is a reminder!'
 
         for user in users:
-            body = 'Hello {}, try out Hangman!'.format(user.name)
-            # This will send test emails, the arguments to send_mail are:
+            # Ignore this User if they have no active Games
+            if len(user.get_games()) == 0:
+                continue
+
+            body = 'Hello {}, come back and finish your Hangman game!'.format(user.name)
+            # This will send emails, the arguments to send_mail are:
             # from, to, subject, body
             mail.send_mail(address, user.email, subject, body)
 

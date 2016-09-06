@@ -170,7 +170,7 @@ class HangmanAPI(remote.Service):
             if not game:
                 raise endpoints.NotFoundException('A Game with that key does not exist!')
 
-            return GuessForms(items = [guess.to_form() for guess in game.guesses])
+            return GuessForms(items = game.get_guesses())
 
 
         @endpoints.method(request_message = MAKE_MOVE_REQUEST,

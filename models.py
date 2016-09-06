@@ -278,6 +278,23 @@ class Game(ndb.Model):
         # Add the Game to the scoreboard
         score.put()
 
+    def get_guesses(self):
+        """Return a collection of all Guesses for this Game as GameForm objects."""
+
+        guess_collection = []
+
+        for guess in self.guesses:
+            # Create a new GuessForm representation of this Guess
+            guessForm = GuessForm()
+            guessForm.guess = guess['guess']
+            guessForm.miss = guess['miss']
+            guessForm.message = guess['message']
+            guessForm.state = guess['state']
+
+            guess_collection.append(guess)
+
+        return guess_collection
+
     def to_form(self, message = ''):
         """Return a GameForm representation of the Game."""
 
