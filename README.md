@@ -4,10 +4,16 @@ Hangman built on Google App Engine
 
 ## Set-Up Instructions
 
-1. Update the value of `application` in app.yaml to the app ID you have registered in the App
-Engine admin console and would like to use to host your instance of this sample.
-2. Run the app with the devserver using dev_appserver.py DIR, and ensure it's
- running by visiting the API Explorer - by default localhost:8080/_ah/api/explorer.
+1. Clone this repository to your local machine
+2. Add the `hangman` folder to the GoogleAppEngineLauncher application
+3. Run this application locally by clicking `Run` in GoogleAppEngineLauncher
+4. Play with the API at
+
+    https://apis-explorer.appspot.com/apis-explorer/?base=http://localhost:8080/_ah/api#p/hangman/v1/
+
+5. See the application state on your local machine at
+
+    http://localhost:8000/datastore
 
 ## Game Description
 
