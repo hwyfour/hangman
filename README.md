@@ -15,6 +15,15 @@ Hangman built on Google App Engine
 
     http://localhost:8000/datastore
 
+Please note: While launching chrome to test your API, you will have to launch it using the console:
+
+    $ [path-to-Chrome]
+
+with the following flags:
+
+    --user-data-dir=test
+    --unsafely-treat-insecure-origin-as-secure=http://localhost:8080
+
 ## Game Description
 
 Hangman is a simple guessing game. Each game starts with a random unknown word that the player
