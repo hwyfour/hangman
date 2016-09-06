@@ -1,0 +1,37 @@
+What additional properties did you add to your models and why?
+
+User:
+
+win_percentage: A player's score is represented by how many games they have won compared to how many games they have started. This is represented as their win percentage.
+
+average_misses: It is useful to know the player's average number of misses over all of their games, as a lower number of misses is indicative of a better player when comparing otherwise identical win percentages of two or more players.
+
+Game:
+
+private_word: I renamed 'target' to private_word as the goal of the game is to guess a word and not a target number. A private word is necessary as it is the 'goal' of the game.
+
+public_word: A public word is necessary as the player needs to be able to see the current state of the game. This current game state is represented by a mix of blank characters and found characters within the word they are tying to guess.
+
+guesses: We need to keep track of each guess that a player makes for each game. The best way to do this is not to create a full Guess object/class but instead to simply keep an array of basic objects containing the guess information as in this way, the guesses are contained within the game itself.
+
+guesses_set: This set is used for tracking each unique guess value for this game. Intead of iterating over the array of guesses each time a new guess is registered, it's easier to do a simple lookup within a set to see if the guess is within the set. If a player makes a duplicate guess, it is a simple manner to see that the guess exists in this set and alert the player that their guess is a duplicate.
+
+cancelled: By storing this boolean, it is useful to track if the game has been cancelled or not.
+
+won: By storing this boolean, it is useful to track if the game has been won or not.
+
+Score:
+
+guesses: I relabelled this from 'misses' as we care more about how many times the player made a bad guess than the actual number of guesses made.
+
+
+
+What were some of the trade-offs or struggles you faced when implementing the new game logic?
+
+1. Do we count duplicate guesses?
+
+Yes, I believe duplicate guesses should count in Hangman. Even if the guess is found in the word, the player should be penalized for not making an appropriate guess.
+
+2. Score keeping
+
+Scores in hangman can be counted in a number of ways such as how many games a player has won, or whomever has a game with the lowest number of missed guesses wins. I decided to base the score on the overall win percentage of a user when looking at all of their games. This is indicative of a good player as a player with a high win percentage not only can guess words, but does not lose or cancel games often.
