@@ -6,8 +6,6 @@ models.py
 Contains the class definitions for the Datastore entities used by Hangman.
 """
 
-import random
-
 from datetime import date
 from google.appengine.ext import ndb
 from protorpc import messages
@@ -236,9 +234,10 @@ class Game(ndb.Model):
             guess_obj['message'] = '{} You win!'.format(guess_obj['message'])
             self.end_game(won = True)
 
-        # If there are no attempts remaingin and the Game has not yet been won, the Game is lost
+        # If there are no attempts remaining and the Game has not yet been won, the Game is lost
         if self.attempts_remaining == 0 and self.won == False:
-            guess_obj['message'] = '{} You lose!'.format(guess_obj['message'])
+            guess_obj['message'] = '{} You lose! The correct word is: {}.'.format(
+                guess_obj['message'], self.private_word)
             self.end_game()
 
         # Add the Guess to our simple set for easy duplicate checking
@@ -303,7 +302,6 @@ class Game(ndb.Model):
         form.user_name = self.user.get().name
         form.public_word = self.public_word
         form.attempts_remaining = self.attempts_remaining
-        form.guesses = self.guesses
         form.game_over = self.game_over
         form.cancelled = self.cancelled
         form.won = self.won
@@ -319,11 +317,10 @@ class GameForm(messages.Message):
     user_name = messages.StringField(2, required = True)
     public_word = messages.StringField(3, required = True)
     attempts_remaining = messages.IntegerField(4, required = True)
-    guesses = messages.MessageField(GuessForm, 5, repeated = True)
-    game_over = messages.BooleanField(6, required = True)
-    cancelled = messages.BooleanField(7, required = True)
-    won = messages.BooleanField(8, required = True)
-    message = messages.StringField(9, required = True)
+    game_over = messages.BooleanField(5, required = True)
+    cancelled = messages.BooleanField(6, required = True)
+    won = messages.BooleanField(7, required = True)
+    message = messages.StringField(8, required = True)
 
 
 class GameForms(messages.Message):
